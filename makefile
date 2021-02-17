@@ -21,9 +21,10 @@ endif
 TMP := .$(OUT)
 
 $(OUT): $(OBJS)
-	@touch $(TMP).c
-	-make $(TMP) && mv $(TMP) $(OUT)
-	@rm -f $(TMP).*
+	touch $(TMP).c
+	make $(TMP)
+	mv $(TMP) $(OUT)
+	rm -f $(TMP)*
 
 $(TMP): $(TMP).o $(OBJS)
 
@@ -31,3 +32,4 @@ $(TMP): $(TMP).o $(OBJS)
 clean:
 	rm -f *.o
 	rm -f $(OUT)
+	rm -f $(TMP)*
