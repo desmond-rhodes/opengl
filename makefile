@@ -11,13 +11,19 @@ ifndef WSLENV
 	LDLIBS := -lglfw3 -lgdi32 -lopengl32
 endif
 
+# Detect MacOS
+ifeq ($(shell uname -s),Darwin)
+	CC := clang
+	LDFLAGS := -Llib/mac
+	LDLIBS := -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit
+endif
+
 TMP := .$(OUT)
 
 $(OUT): $(OBJS)
-	touch $(TMP).o
-	make $(TMP)
-	rm -f $(TMP).o
-	mv $(TMP) $(OUT)
+	@touch $(TMP).c
+	-make $(TMP) && mv $(TMP) $(OUT)
+	@rm -f $(TMP).*
 
 $(TMP): $(TMP).o $(OBJS)
 
