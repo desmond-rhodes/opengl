@@ -1,16 +1,18 @@
 #include <GLFW/glfw3.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
+#include <iostream>
+#include <chrono>
+#include <random>
 
 void window_refresh_callback(GLFWwindow*);
-void random_colour(void);
 void window_redraw(GLFWwindow*);
 
-int main(void)
-{
-	printf("Hello, world!\n");
-	srand(time(NULL));
+void random_colour(void);
+
+int main(int argc, char* argv[]) {
+	std::ios_base::sync_with_stdio(false);
+	std::cin.tie(nullptr);
+
+	std::cout << "Hello, world!\n";
 
 	GLFWwindow* window;
 
@@ -56,14 +58,6 @@ void window_refresh_callback(GLFWwindow* window) {
 	window_redraw(window);
 }
 
-void random_colour() {
-	GLfloat r, g, b;
-	r = (float) rand() / RAND_MAX;
-	g = (float) rand() / RAND_MAX;
-	b = (float) rand() / RAND_MAX;
-	glColor3f(r, g, b);
-}
-
 void window_redraw(GLFWwindow* window) {
 	/* Render here */
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -77,4 +71,10 @@ void window_redraw(GLFWwindow* window) {
 
 	/* Swap front and back buffers */
 	glfwSwapBuffers(window);
+}
+
+void random_colour() {
+	static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
+	static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+	glColor3f(distribution(generator), distribution(generator), distribution(generator));
 }
