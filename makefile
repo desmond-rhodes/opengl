@@ -1,7 +1,7 @@
 OUT := graphic
 OBJS := main.o
 
-CXXFLAGS := -Wall -Iinclude
+CXXFLAGS := -Wall -std=c++17 -Iinclude
 LDLIBS := -lglfw3
 
 # Detect Windows Subsystem for Linux
