@@ -14,7 +14,7 @@ endif
 # Detect MacOS
 ifeq ($(shell uname -s),Darwin)
 	CC := clang
-	CFLAGS += -DGL_SILENCE_DEPRECATION
+	CPPFLAGS := -DGL_SILENCE_DEPRECATION
 	LDFLAGS := -Llib/mac
 	LDLIBS := -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit
 endif
@@ -27,7 +27,7 @@ $(OUT): $(OBJS)
 	mv $(TMP) $(OUT)
 	rm -f $(TMP)*
 
-$(TMP): $(TMP).o $(OBJS)
+$(TMP): $(TMP).c $(OBJS)
 
 .PHONY: clean
 clean:
