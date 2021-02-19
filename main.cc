@@ -9,7 +9,7 @@ int render_width {640};
 int render_height {480};
 
 void window_refresh_callback(GLFWwindow*);
-void random_colour(void);
+void random_colour(GLfloat*);
 
 int main(int argc, char* argv[]) {
 	std::ios_base::sync_with_stdio(false);
@@ -54,20 +54,40 @@ void render_scene(GLFWwindow* window, bool const* terminate) {
 		}
 
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		GLfloat c[12]; random_colour(c);
 		glBegin(GL_QUADS);
-			random_colour(); glVertex2f( 100,  100);
-			random_colour(); glVertex2f(-100,  100);
-			random_colour(); glVertex2f(-100, -100);
-			random_colour(); glVertex2f( 100, -100);
+			glColor3f(c[ 0], c[ 1], c[ 2]); glVertex2f( 100,  100);
+			glColor3f(c[ 3], c[ 4], c[ 5]); glVertex2f(-100,  100);
+			glColor3f(c[ 6], c[ 7], c[ 8]); glVertex2f(-100, -100);
+			glColor3f(c[ 9], c[10], c[11]); glVertex2f( 100, -100);
 		glEnd();
+
 		glfwSwapBuffers(window);
 	}
 }
 
 void window_refresh_callback(GLFWwindow* window) { glfwGetFramebufferSize(window, &render_width, &render_height); }
 
-void random_colour() {
+void random_colour(GLfloat* color) {
 	static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
 	static std::uniform_real_distribution<double> distribution(0.0, 1.0);
-	glColor3f(distribution(generator), distribution(generator), distribution(generator));
+
+	static double prev[12];
+	static double next[12];
+	static auto anchor = std::chrono::steady_clock::now();
+	static std::chrono::seconds delay {1};
+
+	auto offset = std::chrono::steady_clock::now();
+	if (offset >= anchor + delay) {
+		anchor = offset;
+		for (int i = 0; i < 12; ++i) {
+			prev[i] = next[i];
+			next[i] = distribution(generator);
+		}
+	}
+
+	double diff = (std::chrono::duration<double>) (offset - anchor) / delay;
+	for (int i = 0; i < 12; ++i)
+		color[i] = prev[i] + (next[i] - prev[i]) * diff;
 }
