@@ -42,7 +42,24 @@ void render_scene(GLFWwindow* window, bool const* terminate) {
 	glfwMakeContextCurrent(window);
 	int width {0}, height {0};
 
+	auto last = std::chrono::steady_clock::now();
+	int fps {0};
+	std::chrono::seconds second {1};
+
 	while (!*terminate) {
+		auto now = std::chrono::steady_clock::now();
+		if (now >= last + second) {
+			std::cout
+				<< (now - last).count() << " : "
+				<< fps << "\t ["
+				<< last.time_since_epoch().count() << " -> "
+				<<  now.time_since_epoch().count() << "]"
+				<< std::endl;
+			fps = 0;
+			last += second;
+		}
+		++fps;
+
 		if (width != render_width || height != render_height) {
 			width = render_width;
 			height = render_height;
@@ -76,11 +93,11 @@ void random_colour(GLfloat* color) {
 	static double prev[12];
 	static double next[12];
 	static auto anchor = std::chrono::steady_clock::now();
-	static std::chrono::seconds delay {1};
+	static std::chrono::milliseconds delay {200};
 
 	auto offset = std::chrono::steady_clock::now();
 	if (offset >= anchor + delay) {
-		anchor = offset;
+		anchor += delay;
 		for (int i = 0; i < 12; ++i) {
 			prev[i] = next[i];
 			next[i] = distribution(generator);
