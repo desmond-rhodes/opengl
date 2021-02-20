@@ -53,17 +53,20 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	auto fps_limit_last {chrono_now_init};
 	std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
 
-	int data_count {4};
+	int data_count {24};
 
 	int vertex_size {3};
 	int vertex_count {vertex_size * data_count};
 
 	GLdouble vertex[vertex_count] {
-		-1.0, -1.0,  0.0,
-		 1.0, -1.0,  0.0,
-		 1.0,  1.0,  0.0,
-		-1.0,  1.0,  0.0
+		-1.0, -1.0, -1.0,     1.0, -1.0, -1.0,     1.0,  1.0, -1.0,    -1.0,  1.0, -1.0,
+		-1.0, -1.0,  1.0,     1.0, -1.0,  1.0,     1.0,  1.0,  1.0,    -1.0,  1.0,  1.0,
+		-1.0, -1.0, -1.0,     1.0, -1.0, -1.0,     1.0, -1.0,  1.0,    -1.0, -1.0,  1.0,
+		-1.0,  1.0, -1.0,     1.0,  1.0, -1.0,     1.0,  1.0,  1.0,    -1.0,  1.0,  1.0,
+		-1.0, -1.0, -1.0,    -1.0,  1.0, -1.0,    -1.0,  1.0,  1.0,    -1.0, -1.0,  1.0,
+		 1.0, -1.0, -1.0,     1.0,  1.0, -1.0,     1.0,  1.0,  1.0,     1.0, -1.0,  1.0
 	};
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(vertex_size, GL_DOUBLE, 0, vertex);
 
@@ -85,11 +88,18 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	glEnableClientState(GL_COLOR_ARRAY);
 	glColorPointer(colour_size, GL_DOUBLE, 0, colour);
 
-	GLuint index[4] {0, 1, 2, 3};
+	GLenum index_type {GL_QUADS};
+	int index_count {4 * 6};
+
+	GLuint index[index_count];
+	for (int i {0}; i < index_count; ++i)
+		index[i] = i;
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslated(0.0, 0.0, -2.0);
+	glScaled(0.5, 0.5, 0.5);
+	glEnable(GL_DEPTH_TEST);
 
 	while (!*terminate) {
 		if (current_width != window_width || current_height != window_height) {
@@ -126,8 +136,10 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 		for (int i {0}; i < colour_count; ++i)
 			colour[i] = colour_prev[i] + (colour_next[i] - colour_prev[i]) * colour_diff;
 
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDrawElements(GL_QUADS, 4, GL_UNSIGNED_INT, index);
+		glRotated(1.0, 1.0, 1.0, 1.0);
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDrawElements(index_type, index_count, GL_UNSIGNED_INT, index);
 		glfwSwapBuffers(window);
 
 		std::this_thread::sleep_for(fps_limit_time - (std::chrono::steady_clock::now() - fps_limit_last));
