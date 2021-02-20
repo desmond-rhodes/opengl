@@ -1,24 +1,20 @@
 #include <GLFW/glfw3.h>
-#include <iostream>
+#include <thread>
 #include <chrono>
 #include <random>
-#include <thread>
 
 void window_refresh_callback(GLFWwindow*);
 int window_width {640};
 int window_height {480};
 
-void render_scene(GLFWwindow*, bool const*);
+void renderer(GLFWwindow*, bool const*);
 void random_colour(GLfloat*);
 
 int main(int argc, char* argv[]) {
-	std::ios_base::sync_with_stdio(false);
-	std::cin.tie(nullptr);
-
-	GLFWwindow* window;
 	if (!glfwInit())
 		return -1;
-	window = glfwCreateWindow(window_width, window_height, "Hello, World!", NULL, NULL);
+
+	GLFWwindow* window {glfwCreateWindow(window_width, window_height, "Hello, World!", NULL, NULL)};
 	if (!window) {
 		glfwTerminate();
 		return -1;
@@ -26,7 +22,7 @@ int main(int argc, char* argv[]) {
 	glfwSetWindowRefreshCallback(window, window_refresh_callback);
 
 	bool terminate {false};
-	std::thread render_thread(render_scene, window, &terminate);
+	std::thread thread(renderer, window, &terminate);
 
 	auto poll_limit_last {std::chrono::steady_clock::now()};
 	std::chrono::microseconds poll_limit_time {33333}; // 30Hz
@@ -38,41 +34,25 @@ int main(int argc, char* argv[]) {
 		poll_limit_last += poll_limit_time;
 	}
 	terminate = true;
+	thread.join();
 
-	render_thread.join();
 	glfwTerminate();
-
-	std::cout << "Hello, world!\n";
 	return 0;
 }
 
-void render_scene(GLFWwindow* window, bool const* terminate) {
+void window_refresh_callback(GLFWwindow* window) { glfwGetFramebufferSize(window, &window_width, &window_height); }
+
+void renderer(GLFWwindow* window, bool const* terminate) {
 	glfwMakeContextCurrent(window);
 	int current_width {0};
 	int current_height {0};
-
-	auto last = std::chrono::steady_clock::now();
-	int fps {0};
-	std::chrono::seconds second {1};
 
 	auto fps_limit_last {std::chrono::steady_clock::now()};
 	std::chrono::microseconds fps_limit_time {41666}; // 24Hz
 
 	while (!*terminate) {
-		auto now = std::chrono::steady_clock::now();
-		if (now >= last + second) {
-			std::cout
-				<< (now - last).count() << " : "
-				<< fps << "\t ["
-				<< last.time_since_epoch().count() << " -> "
-				<<  now.time_since_epoch().count() << "]"
-				<< std::endl;
-			fps = 0;
-			last += second;
-		}
-		++fps;
-
 		if (current_width != window_width || current_height != window_height) {
+			/* Note that this data reading is unsafe */
 			current_width = window_width;
 			current_height = window_height;
 
@@ -98,8 +78,6 @@ void render_scene(GLFWwindow* window, bool const* terminate) {
 		fps_limit_last += fps_limit_time;
 	}
 }
-
-void window_refresh_callback(GLFWwindow* window) { glfwGetFramebufferSize(window, &window_width, &window_height); }
 
 void random_colour(GLfloat* color) {
 	static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
