@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 	std::thread thread(renderer, window, &terminate);
 
 	auto poll_limit_last {std::chrono::steady_clock::now()};
-	std::chrono::microseconds poll_limit_time {33333}; /* 30Hz */
+	constexpr std::chrono::microseconds poll_limit_time {33333}; /* 30Hz */
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -51,12 +51,12 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	GLsizei current_height {0};
 
 	auto fps_limit_last {chrono_now_init};
-	std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
+	constexpr std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
 
-	GLsizei data_count {24};
+	constexpr GLsizei data_count {24};
 
-	int vertex_size {3};
-	int vertex_count {vertex_size * data_count};
+	constexpr int vertex_size {3};
+	constexpr int vertex_count {vertex_size * data_count};
 	GLdouble vertex[vertex_count] {
 		-1.0, -1.0, -1.0,     1.0, -1.0, -1.0,     1.0,  1.0, -1.0,    -1.0,  1.0, -1.0,
 		-1.0, -1.0,  1.0,     1.0, -1.0,  1.0,     1.0,  1.0,  1.0,    -1.0,  1.0,  1.0,
@@ -70,10 +70,10 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 
 	std::uniform_real_distribution<double> colour_distribution(0.0, 1.0);
 	auto colour_change_last {chrono_now_init};
-	std::chrono::milliseconds colour_change_time {400};
+	constexpr std::chrono::milliseconds colour_change_time {400};
 
-	int colour_size {3};
-	int colour_count {colour_size * data_count};
+	constexpr int colour_size {3};
+	constexpr int colour_count {colour_size * data_count};
 
 	GLdouble colour_prev[colour_count];
 	GLdouble colour_next[colour_count];
@@ -88,9 +88,9 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 
 	std::uniform_real_distribution<double> rotation_distribution(0.0, 360.0);
 	auto rotation_change_last {chrono_now_init};
-	std::chrono::seconds rotation_change_time {3};
+	constexpr std::chrono::seconds rotation_change_time {3};
 
-	int rotation_count {3};
+	constexpr int rotation_count {3};
 	GLdouble rotation_prev[rotation_count];
 	GLdouble rotation_next[rotation_count];
 	for (int i {0}; i < rotation_count; ++i) {
