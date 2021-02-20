@@ -53,11 +53,10 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	auto fps_limit_last {chrono_now_init};
 	std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
 
-	int data_count {24};
+	GLsizei data_count {24};
 
 	int vertex_size {3};
 	int vertex_count {vertex_size * data_count};
-
 	GLdouble vertex[vertex_count] {
 		-1.0, -1.0, -1.0,     1.0, -1.0, -1.0,     1.0,  1.0, -1.0,    -1.0,  1.0, -1.0,
 		-1.0, -1.0,  1.0,     1.0, -1.0,  1.0,     1.0,  1.0,  1.0,    -1.0,  1.0,  1.0,
@@ -66,13 +65,12 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 		-1.0, -1.0, -1.0,    -1.0,  1.0, -1.0,    -1.0,  1.0,  1.0,    -1.0, -1.0,  1.0,
 		 1.0, -1.0, -1.0,     1.0,  1.0, -1.0,     1.0,  1.0,  1.0,     1.0, -1.0,  1.0
 	};
-
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(vertex_size, GL_DOUBLE, 0, vertex);
 
 	std::uniform_real_distribution<double> colour_distribution(0.0, 1.0);
 	auto colour_change_last {chrono_now_init};
-	std::chrono::milliseconds colour_change_time {1000};
+	std::chrono::milliseconds colour_change_time {400};
 
 	int colour_size {3};
 	int colour_count {colour_size * data_count};
@@ -88,17 +86,24 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	glEnableClientState(GL_COLOR_ARRAY);
 	glColorPointer(colour_size, GL_DOUBLE, 0, colour);
 
-	GLenum index_type {GL_QUADS};
-	int index_count {4 * 6};
+	std::uniform_real_distribution<double> rotation_distribution(0.0, 360.0);
+	auto rotation_change_last {chrono_now_init};
+	std::chrono::seconds rotation_change_time {3};
 
-	GLuint index[index_count];
-	for (int i {0}; i < index_count; ++i)
-		index[i] = i;
+	int rotation_count {3};
+	GLdouble rotation_prev[rotation_count];
+	GLdouble rotation_next[rotation_count];
+	for (int i {0}; i < rotation_count; ++i) {
+		rotation_prev[i] = rotation_distribution(generator);
+		rotation_next[i] = rotation_distribution(generator);
+	}
+	GLdouble rotation[rotation_count];
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslated(0.0, 0.0, -2.0);
 	glScaled(0.5, 0.5, 0.5);
+	glPushMatrix();
 	glEnable(GL_DEPTH_TEST);
 
 	while (!*terminate) {
@@ -136,10 +141,29 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 		for (int i {0}; i < colour_count; ++i)
 			colour[i] = colour_prev[i] + (colour_next[i] - colour_prev[i]) * colour_diff;
 
-		glRotated(1.0, 1.0, 1.0, 1.0);
+		if (time_now >= rotation_change_last + rotation_change_time) {
+			rotation_change_last += rotation_change_time;
+			for (int i {0}; i < rotation_count; ++i) {
+				rotation_prev[i] = rotation_next[i];
+				rotation_next[i] = rotation_distribution(generator);
+			}
+		}
+
+		GLdouble rotation_diff {static_cast<std::chrono::duration<double>>(time_now - rotation_change_last) / rotation_change_time};
+		if (rotation_diff < 0.5)
+			rotation_diff = 4.0 * pow(rotation_diff, 3.0);
+		else
+			rotation_diff = 4.0 * pow(rotation_diff - 1.0, 3.0) + 1.0;
+		for (int i {0}; i < rotation_count; ++i)
+			rotation[i] = rotation_prev[i] + (rotation_next[i] - rotation_prev[i]) * rotation_diff;
+
+		glPopMatrix(); glPushMatrix();
+		glRotated(rotation[0], 1.0, 0.0, 0.0);
+		glRotated(rotation[1], 0.0, 1.0, 0.0);
+		glRotated(rotation[2], 0.0, 0.0, 1.0);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawElements(index_type, index_count, GL_UNSIGNED_INT, index);
+		glDrawArrays(GL_QUADS, 0, data_count);
 		glfwSwapBuffers(window);
 
 		std::this_thread::sleep_for(fps_limit_time - (std::chrono::steady_clock::now() - fps_limit_last));
