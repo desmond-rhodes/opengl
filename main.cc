@@ -43,26 +43,53 @@ int main(int argc, char* argv[]) {
 void window_refresh_callback(GLFWwindow* window) { glfwGetFramebufferSize(window, &window_width, &window_height); }
 
 void renderer(GLFWwindow* window, bool const* terminate) {
+	std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
+	auto chrono_now_init {std::chrono::steady_clock::now()};
+
 	glfwMakeContextCurrent(window);
 	GLsizei current_width {0};
 	GLsizei current_height {0};
 
-	auto fps_limit_last {std::chrono::steady_clock::now()};
+	auto fps_limit_last {chrono_now_init};
 	std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
 
-	GLdouble vertex[12] {
+	int data_count {4};
+
+	int vertex_size {3};
+	int vertex_count {vertex_size * data_count};
+
+	GLdouble vertex[vertex_count] {
 		-1.0, -1.0,  0.0,
 		 1.0, -1.0,  0.0,
 		 1.0,  1.0,  0.0,
 		-1.0,  1.0,  0.0
 	};
-	GLfloat colour[12];
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(vertex_size, GL_DOUBLE, 0, vertex);
+
+	std::uniform_real_distribution<double> colour_distribution(0.0, 1.0);
+	auto colour_change_last {chrono_now_init};
+	std::chrono::milliseconds colour_change_time {1000};
+
+	int colour_size {3};
+	int colour_count {colour_size * data_count};
+
+	GLdouble colour_prev[colour_count];
+	GLdouble colour_next[colour_count];
+	for (int i {0}; i < colour_count; ++i) {
+		colour_prev[i] = colour_distribution(generator);
+		colour_next[i] = colour_distribution(generator);
+	}
+
+	GLdouble colour[colour_count];
+	glEnableClientState(GL_COLOR_ARRAY);
+	glColorPointer(colour_size, GL_DOUBLE, 0, colour);
+
 	GLuint index[4] {0, 1, 2, 3};
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glVertexPointer(3, GL_DOUBLE, 0, vertex);
-	glColorPointer(3, GL_FLOAT, 0, colour);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glTranslated(0.0, 0.0, -2.0);
 
 	while (!*terminate) {
 		if (current_width != window_width || current_height != window_height) {
@@ -81,10 +108,23 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
-			glOrtho(-w, w, -h, h, -1.0, 1.0);
+			glFrustum(-w, w, -h, h, 1.0, 3.0);
+			glMatrixMode(GL_MODELVIEW);
 		}
 
-		random_colour(colour);
+		auto time_now {std::chrono::steady_clock::now()};
+
+		if (time_now >= colour_change_last + colour_change_time) {
+			colour_change_last += colour_change_time;
+			for (int i {0}; i < colour_count; ++i) {
+				colour_prev[i] = colour_next[i];
+				colour_next[i] = colour_distribution(generator);
+			}
+		}
+
+		GLdouble colour_diff {static_cast<std::chrono::duration<double>>(time_now - colour_change_last) / colour_change_time};
+		for (int i {0}; i < colour_count; ++i)
+			colour[i] = colour_prev[i] + (colour_next[i] - colour_prev[i]) * colour_diff;
 
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDrawElements(GL_QUADS, 4, GL_UNSIGNED_INT, index);
@@ -93,27 +133,4 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 		std::this_thread::sleep_for(fps_limit_time - (std::chrono::steady_clock::now() - fps_limit_last));
 		fps_limit_last += fps_limit_time;
 	}
-}
-
-void random_colour(GLfloat* color) {
-	static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
-	static std::uniform_real_distribution<double> distribution(0.0, 1.0);
-
-	static double prev[12];
-	static double next[12];
-	static auto anchor = std::chrono::steady_clock::now();
-	static std::chrono::milliseconds delay {200};
-
-	auto offset = std::chrono::steady_clock::now();
-	if (offset >= anchor + delay) {
-		anchor += delay;
-		for (int i = 0; i < 12; ++i) {
-			prev[i] = next[i];
-			next[i] = distribution(generator);
-		}
-	}
-
-	double diff = (std::chrono::duration<double>) (offset - anchor) / delay;
-	for (int i = 0; i < 12; ++i)
-		color[i] = prev[i] + (next[i] - prev[i]) * diff;
 }
