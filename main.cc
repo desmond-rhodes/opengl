@@ -46,7 +46,16 @@ void render_scene(GLFWwindow* window, bool const* terminate) {
 	int fps {0};
 	std::chrono::seconds second {1};
 
+	auto anchor = std::chrono::steady_clock::now();
+	static std::chrono::milliseconds delay {20};
+
 	while (!*terminate) {
+		auto offset = std::chrono::steady_clock::now();
+		if (offset >= anchor + delay)
+			anchor += delay;
+		else
+			continue;
+
 		auto now = std::chrono::steady_clock::now();
 		if (now >= last + second) {
 			std::cout
