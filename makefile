@@ -5,6 +5,9 @@ CXXFLAGS := -Wall -std=c++17 -Iinclude
 LDLIBS := -lglfw3
 
 # Detect Windows Subsystem for Linux
+ifdef WSLENV
+	WSLENV :=
+endif
 WSLENV ?= notwsl
 ifndef WSLENV
 	CXX := x86_64-w64-mingw32-g++-posix
