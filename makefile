@@ -1,7 +1,8 @@
 OUT := graphic
 OBJS := main.o
 
-CXXFLAGS := -Wall -std=c++17 -Iinclude
+CXXFLAGS := -Wall -std=c++17
+CPPFLAGS := -Iinclude
 LDLIBS := -lglfw3
 
 # Detect Windows Subsystem for Linux
@@ -13,7 +14,7 @@ ifndef WSLENV
 	CXX := x86_64-w64-mingw32-g++-posix
 	LDFLAGS := -Llib/wsl
 	LDLIBS += -lgdi32 -lopengl32
-	LDLIBS += -static-libgcc -static-libstdc++ -static -lwinpthread
+	LDLIBS += -static-libstdc++ -static -lpthread
 endif
 
 # Detect MacOS
@@ -24,18 +25,9 @@ ifeq ($(shell uname -s),Darwin)
 	LDLIBS += -framework Cocoa -framework OpenGL -framework IOKit
 endif
 
-TMP := .$(OUT)
-
 $(OUT): $(OBJS)
-	touch $(TMP).cc
-	make $(TMP)
-	mv $(TMP) $(OUT)
-	rm -f $(TMP)*
-
-$(TMP): $(TMP).cc $(OBJS)
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o ._$@ && mv ._$@ $@
 
 .PHONY: clean
 clean:
-	rm -f *.o
-	rm -f $(OUT)
-	rm -f $(TMP)*
+	rm -f $(OBJS) $(OUT)
