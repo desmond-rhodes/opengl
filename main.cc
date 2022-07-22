@@ -1,57 +1,83 @@
-#include <GLFW/glfw3.h>
 #include <thread>
 #include <chrono>
+
+class hertz_limit {
+public:
+	hertz_limit(int r) : rate {r}, last {std::chrono::steady_clock::now()} {}
+	void sleep() { std::this_thread::sleep_for(rate-(std::chrono::steady_clock::now()-last)); last = (drop) ? std::chrono::steady_clock::now() : last+rate; }
+	void skip(bool d) { drop = d; };
+private:
+	std::chrono::microseconds rate;
+	std::chrono::time_point<std::chrono::steady_clock> last;
+	bool drop {true};
+};
+
+#include <GLFW/glfw3.h>
 #include <random>
+#include <shared_mutex>
+
+struct {
+	char const* title {"OpenGL"};
+	int w {640};
+	int h {480};
+	std::shared_mutex l;
+}
+winfo;
 
 void window_refresh_callback(GLFWwindow*);
-int window_width {640};
-int window_height {480};
 
-void renderer(GLFWwindow*, bool const*);
+struct {
+	bool terminate {false};
+	std::shared_mutex l;
+}
+tinfo;
+
+void renderer(GLFWwindow*);
 void random_colour(GLfloat*);
 
 int main(int argc, char* argv[]) {
 	if (!glfwInit())
 		return -1;
 
-	GLFWwindow* window {glfwCreateWindow(window_width, window_height, "Hello, World!", NULL, NULL)};
+	GLFWwindow* window {glfwCreateWindow(winfo.w, winfo.h, winfo.title, nullptr, nullptr)};
 	if (!window) {
 		glfwTerminate();
 		return -1;
 	}
 	glfwSetWindowRefreshCallback(window, window_refresh_callback);
 
-	bool terminate {false};
-	std::thread thread(renderer, window, &terminate);
+	std::thread thread(renderer, window);
 
-	auto poll_limit_last {std::chrono::steady_clock::now()};
-	constexpr std::chrono::microseconds poll_limit_time {33333}; /* 30Hz */
-
+	hertz_limit r {33333};
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-
-		std::this_thread::sleep_for(poll_limit_time - (std::chrono::steady_clock::now() - poll_limit_last));
-		poll_limit_last += poll_limit_time;
+		r.sleep();
 	}
-	terminate = true;
+	std::unique_lock tw_lock {tinfo.l};
+	tinfo.terminate = true;
+	tw_lock.unlock();
 	thread.join();
 
 	glfwTerminate();
 	return 0;
 }
 
-void window_refresh_callback(GLFWwindow* window) { glfwGetFramebufferSize(window, &window_width, &window_height); }
+void window_refresh_callback(GLFWwindow* window) {
+	std::unique_lock ww_lock {winfo.l};
+	glfwGetFramebufferSize(window, &winfo.w, &winfo.h);
+}
 
-void renderer(GLFWwindow* window, bool const* terminate) {
+void renderer(GLFWwindow* window) {
 	std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
 	auto chrono_now_init {std::chrono::steady_clock::now()};
 
 	glfwMakeContextCurrent(window);
-	GLsizei current_width {0};
-	GLsizei current_height {0};
-
-	auto fps_limit_last {chrono_now_init};
-	constexpr std::chrono::microseconds fps_limit_time {41666}; /* 24Hz */
+	glfwSwapInterval(1);
+	struct {
+		GLsizei w {0};
+		GLsizei h {0};
+	}
+	finfo;
 
 	constexpr GLsizei data_count {24};
 
@@ -106,26 +132,35 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 	glPushMatrix();
 	glEnable(GL_DEPTH_TEST);
 
-	while (!*terminate) {
-		if (current_width != window_width || current_height != window_height) {
-			/* WARNING: Data reading is not thread safe! */
-			current_width = window_width;
-			current_height = window_height;
+	std::shared_lock tr_lock {tinfo.l, std::defer_lock};
+	std::shared_lock wr_lock {winfo.l, std::defer_lock};
 
-			glViewport(0, 0, current_width, current_height);
+	for (;;) {
+		tr_lock.lock();
+		if (tinfo.terminate)
+			break;
+		tr_lock.unlock();
+
+		wr_lock.lock();
+		if (finfo.w != winfo.w || finfo.h != winfo.h) {
+			finfo.w = winfo.w;
+			finfo.h = winfo.h;
+
+			glViewport(0, 0, finfo.w, finfo.h);
 
 			GLdouble w {1};
 			GLdouble h {1};
-			if (current_width > current_height)
-				w = static_cast<GLdouble>(current_width) / current_height;
+			if (finfo.w > finfo.h)
+				w = static_cast<GLdouble>(finfo.w) / finfo.h;
 			else
-				h = static_cast<GLdouble>(current_height) / current_width;
+				h = static_cast<GLdouble>(finfo.h) / finfo.w;
 
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
 			glFrustum(-w, w, -h, h, 1.0, 3.0);
 			glMatrixMode(GL_MODELVIEW);
 		}
+		wr_lock.unlock();
 
 		auto time_now {std::chrono::steady_clock::now()};
 
@@ -165,8 +200,5 @@ void renderer(GLFWwindow* window, bool const* terminate) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDrawArrays(GL_QUADS, 0, data_count);
 		glfwSwapBuffers(window);
-
-		std::this_thread::sleep_for(fps_limit_time - (std::chrono::steady_clock::now() - fps_limit_last));
-		fps_limit_last += fps_limit_time;
 	}
 }
